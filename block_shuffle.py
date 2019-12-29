@@ -8,19 +8,19 @@ from time import sleep #TODO: is really required?
 import raa_logger
 import logging
 
-def check_legal_mapping(land_use_codes, cellno_formats): #TODO: raise error to GUI, which will open window
+def check_legal_mapping(land_use_codes, cellno_formats): #TODO: raise error to GUI, which will open window + exception to logger?
     error = True
     if len(land_use_codes) > len(set(land_use_codes)):
-        print("\nError: \"land use code\" values must be unique")
+        logger.exception("\nError: \"land use code\" values must be unique")
     elif len(cellno_formats) > len(set(cellno_formats)):
-        print("\nError: \"cellno format\" values must be unique")
+        logger.exception("\nError: \"cellno format\" values must be unique")
     elif len(land_use_codes) != len(cellno_formats):
-        print("\nError: number of \"land use code\" values should be equal to those of \"cellno format\"")
+        logger.exception("\nError: number of \"land use code\" values should be equal to those of \"cellno format\"")
     else:
         error = False
 
-    if error:
-        print("Exiting...")
+    if error: #TODO: if logger.exception - then exit still needed? to check 
+        logger.info("Exiting...")
         exit()
 
 def trailing(s):
@@ -36,17 +36,17 @@ def get_max_cellnos(cellno_format):
 def open_acad(filepath):
     global doc
     try: #Get AutoCAD running instance
-        print("\nChecking for an active AutoCAD app...\n")
+        logger.info("\nChecking for an active AutoCAD app...\n")
         acad = GetActiveObject("AutoCAD.Application")
         state = True
     except(OSError,COMError): #If autocad isn't running, open it
-        print("No active app - opening AutoCAD...\n")
+        logger.info("No active app - opening AutoCAD...\n")
         acad = CreateObject("AutoCAD.Application",dynamic=True)
         state = False
     acad.Visible = False #TODO: 1. how to get invisible AutoCAD right at opening? 2. should make invisible if already opened?
 
     if state: #If you have only 1 opened drawing
-        print("Found an active app\n")
+        logger.info("Found an active app\n")
         doc = acad.Documents.Item(0)
     else:
         doc = acad.Documents.Open(filepath)
@@ -54,12 +54,12 @@ def open_acad(filepath):
 
 def acad_command(command_str): #TODO: add command status checking, and passing errors back to GUI, maybe try few times before quitting with failure
     global doc
-    print(f'[debug] Sending command:{command_str}')
+    logger.debug(f'Sending command:{command_str}')
     doc.SendCommand(command_str)
 
 # Extract used cellno and codes from Autocad file 
 def acad_ext_cellno_codes(template_filepath, ext_filepath):
-    print("\nExtracting CELLNO data from Autocad...\n")
+    logger.info("\nExtracting CELLNO data from Autocad...\n")
     # 1. Select all blocks
     acad_command('._select all  ') #Notice that the last SPACE is equivalent to hiting ENTER
     #You should separate the command's arguments also with SPACE
@@ -107,12 +107,12 @@ def shuffle(acad_filepath, mapping_excel_filepath):
     # Read mapping excel and create a formats dict
     mapping_sheet = 'mapping' #TODO: take mapping sheet name from user
     df = pd.read_excel(mapping_excel_filepath, mapping_sheet) 
-    print(f"Reading excel file: {mapping_excel_filepath}\tsheet name: {mapping_sheet}\n{df}")
-    logger.debug('Clock started')
+    logger.debug(f"Reading excel file: {mapping_excel_filepath}\tsheet name: {mapping_sheet}\n{df}")
+    logger.debug('Clock started')#TODO: temp for logger debug
     land_use_codes = list(map(lambda x: str(int(x)), df['land use code'].dropna().tolist()))
     cellno_formats = list(map(lambda x: str(int(x)), df['cellno format'].dropna().tolist()))
-    print(f"len(land_use_codes):{land_use_codes}")
-    print(f"len(cellno_formats):{cellno_formats}")
+    logger.debug(f"len(land_use_codes):{land_use_codes}")
+    logger.debug(f"len(cellno_formats):{cellno_formats}")
     check_legal_mapping(land_use_codes, cellno_formats)
     
     formats_d = {}
@@ -129,7 +129,7 @@ def shuffle(acad_filepath, mapping_excel_filepath):
     new_data_d = {}
     print_new_data_d = {}
     for line in file_str:
-        print(f"[debug] line:{line}") # debug #TODO: create debug_print
+        logger.debug(f"line:{line}") 
         data_l = line.split(",")
         data_strip_l = [re.sub("[\s\t\n]", "", x) for x in data_l]
         if "cellno" in data_strip_l[0].lower():
@@ -140,32 +140,32 @@ def shuffle(acad_filepath, mapping_excel_filepath):
     mid_char = 'A'
     for i, key in enumerate(data_d):
         mid_char = chr(ord(mid_char) + 1)
-        print(f"mid_char:{mid_char}")
+        logger.debug(f"mid_char:{mid_char}")
         if key not in formats_d.keys():
-            print("\nError: Autodesk CODE was not found in excel list of codes\nExiting...") #TODO: raise error to GUI, which will open window
-            exit()
-        print(f"\nCODE {key}:\nOriginal CELLNO values:{data_d[key]}")
+            logger.exception("\nError: Autodesk CODE was not found in excel list of codes\nExiting...") #TODO: raise error to GUI, which will open window
+#            exit() #TODO: needed? 
+        logger.debug(f"\nCODE {key}:\nOriginal CELLNO values:{data_d[key]}")
         format_max_cellnos = get_max_cellnos(formats_d[key]) # get max number of cellnos (according to the format)
         for j, val in enumerate(data_d[key]):
             if j > format_max_cellnos:
-                print(f"\nError: Exceeded maximum number of possible cellno values allowed by format\nThere can be {format_max_cellnos} cellnos\nExiting...") #TODO: raise error to GUI, which will open window
+                logger.exception(f"\nError: Exceeded maximum number of possible cellno values allowed by format\nThere can be {format_max_cellnos} cellnos\nExiting...") #TODO: raise error to GUI, which will open window
                 exit()
             mid_val = mid_char + str(j)
             new_val = str(int(formats_d[key])+j)
             new_data_d.update({mid_val : new_val})
             print_new_data_d.setdefault(key, []).append(new_val) # only for debug print
             # replace cellno in autocad - first by a unique temporary value
-            print(f"Replacing {val} by unique mid value {mid_val}")
+            logger.info(f"Replacing {val} by unique mid value {mid_val}")
             acad_replace_cellno(old_cellno=val,  new_cellno=mid_val)
             sleep(0.2)
-        print(f"Updated CELLNO values:{print_new_data_d[key]}") 
+        logger.infor(f"Updated CELLNO values:{print_new_data_d[key]}") 
     #acad_replace_cellno(old_cellno=val,  new_cellno=new_val)
     
     # now replace cellno by new values
-    print(f"new_data_d:{new_data_d}")
+    logger.debug(f"new_data_d:{new_data_d}")
     for uniq in new_data_d:
         new_val = new_data_d[uniq]
-        print(f"Replacing unique mid value {uniq} by {new_val}")
+        logger.info(f"Replacing unique mid value {uniq} by {new_val}")
         acad_replace_cellno(old_cellno=uniq,  new_cellno=new_val)
         sleep(0.2)
     
