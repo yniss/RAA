@@ -5,7 +5,8 @@ from comtypes import COMError
 from comtypes.client import CreateObject, GetActiveObject
 from os.path import dirname, basename, splitext, join
 from time import sleep #TODO: is really required?
-#import my_log_queue
+import raa_logger
+import logging
 
 def check_legal_mapping(land_use_codes, cellno_formats): #TODO: raise error to GUI, which will open window
     error = True
@@ -91,7 +92,8 @@ def gen_template_file(acad_filepath):
         f.write(wstr)
     return template_filepath
 
-def shuffle(acad_filepath, mapping_excel_filepath): 
+def shuffle(acad_filepath, mapping_excel_filepath):
+    logger = logging.getLogger("raa_logger")
     global doc
     #TODO: how to switch to invisible?
     # Open Autocad and dwg file
@@ -106,8 +108,7 @@ def shuffle(acad_filepath, mapping_excel_filepath):
     mapping_sheet = 'mapping' #TODO: take mapping sheet name from user
     df = pd.read_excel(mapping_excel_filepath, mapping_sheet) 
     print(f"Reading excel file: {mapping_excel_filepath}\tsheet name: {mapping_sheet}\n{df}")
-    #print(f"YYY - my_log_queue.logger:{my_log_queue.logger}")
-    #my_log_queue.logger.debug('Clock started')
+    logger.debug('Clock started')
     land_use_codes = list(map(lambda x: str(int(x)), df['land use code'].dropna().tolist()))
     cellno_formats = list(map(lambda x: str(int(x)), df['cellno format'].dropna().tolist()))
     print(f"len(land_use_codes):{land_use_codes}")

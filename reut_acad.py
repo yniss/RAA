@@ -9,30 +9,17 @@ from os.path import basename, splitext, isfile
 import threading
 import queue
 import logging
-#import my_log_queue
-import datetime #TODO: temp for debug of logger
-import time #TODO: temp for debug of logger
-import block_shuffle
+import raa_logger
+import block_shuffle #TODO: temp removed
+#import test_code #TODO: temp for logging debug
 
-##  #NEW LOGGING
-class QueueHandler(logging.Handler):
-    """Class to send logging records to a queue
-    
-    It can be used from different threads
-    """
-    def __init__(self, log_queue):
-        super().__init__()
-        self.log_queue = log_queue
-        
-    def emit(self, record):
-        self.log_queue.put(record)
 
 
 class Root(Tk):
     def __init__(self):
         super(Root, self).__init__()
         self.title("RAA") 
-        self.wm_iconbitmap('C:/Users/reuts/Desktop/חן/קרית גת/arch.ico')
+        self.wm_iconbitmap('C:/Users/reuts/Desktop/חן/קרית גת/arch.ico') #TODO: temp removed
         self.acadFilename = ""
         self.excelFilename = ""
 
@@ -89,57 +76,11 @@ class Root(Tk):
         ##          self.after(100, self.auto_scroll)
         # ---------------------------------------------------------------------------------
         # NEW LOGGING
-        self.scrolled_text = scrolledtext.ScrolledText(self.labelFrame2, state='disabled', height=12)
-        self.scrolled_text.grid(row=4, column=0, sticky=(N, S, W, E))
-        self.scrolled_text.configure(font='TkFixedFont')
-        self.scrolled_text.tag_config('INFO', foreground='black')
-        self.scrolled_text.tag_config('DEBUG', foreground='gray')
-        self.scrolled_text.tag_config('WARNING', foreground='orange')
-        self.scrolled_text.tag_config('ERROR', foreground='red')
-        self.scrolled_text.tag_config('CRITICAL', foreground='red', underline=1)
-        # Create a logging handler using a queue
-        self.log_queue = queue.Queue()
-#        self.queue_handler = my_log_queue.QueueHandler(self.log_queue)
-        self.queue_handler = QueueHandler(self.log_queue)
-        formatter = logging.Formatter('%(asctime)s: %(message)s') #TODO: modify??
-        self.queue_handler.setFormatter(formatter)
-#        my_log_queue.logger.addHandler(self.queue_handler)
-        logger.addHandler(self.queue_handler)
-        # Start polling messages from the queue
-        self.labelFrame2.after(100, self.poll_log_queue)
-        self.clock = Clock() #TODO: temp for logger debug
-        self.clock.start() #TODO: temp for logger debug
-        #TODO: temp for logger debug
-###        self.root.protocol('WM_DELETE_WINDOW', self.quit)
-###        self.root.bind('<Control-q>', self.quit)
-###        signal.signal(signal.SIGINT, self.quit)
-###
-###        def quit(self, *args):
-###            self.clock.stop()
-###            self.root.destroy()
+        self.console = raa_logger.ConsoleUi(self.labelFrame2)
+        logger = logging.getLogger("raa_logger")
+        logger.info("NEW LOGGING") #TODO: just for debug
 
-    def display(self, record):
-        msg = self.queue_handler.format(record)
-        self.scrolled_text.configure(state='normal')
-        self.scrolled_text.insert(END, msg + '\n', record.levelname)
-        self.scrolled_text.configure(state='disabled')
-        # Autoscroll to the bottom
-        self.scrolled_text.yview(END)
 
-    def poll_log_queue(self):
-        # Check every 100ms if there is a new message in the queue to display
-        print("YAIRRRTTTOOO")
-        logger.log(10, "BLABLABLA")
-        while True:
-            try:
-                record = self.log_queue.get(block=False)
-            except queue.Empty:
-                #print("YAIRRR")
-                break
-            else:
-                self.display(record)
-        self.labelFrame2.after(100, self.poll_log_queue)
-    
     def acadFileDialog(self): 
         self.acadFilename = filedialog.askopenfilename(initialdir =  "/", title = "Select A File", filetype =
         (("AutoCAD files","*.dwg"),("all files","*.*")) )
@@ -170,11 +111,14 @@ class Root(Tk):
     
         
     def runShuffle(self):
-        acadFileValid = self.checkValidFile("AutoCAD", self.acadFilename, self.acadEntry.get())
-        excelFileValid = self.checkValidFile("Excel", self.excelFilename, self.excelEntry.get())
-
+        acadFileValid = self.checkValidFile("AutoCAD", self.acadFilename, self.acadEntry.get()) #TODO: masked just for debug 
+        excelFileValid = self.checkValidFile("Excel", self.excelFilename, self.excelEntry.get())    #TODO: masked just for debug
+        #acadFileValid = True #TODO: just for debug
+        #excelFileValid = True #TODO: just for debug
+        
         if acadFileValid and excelFileValid:
-            block_shuffle_thread = threading.Thread(target=block_shuffle.shuffle, args=(self.acadFilename, self.excelFilename), daemon=True)
+            block_shuffle_thread = threading.Thread(target=block_shuffle.shuffle, args=(self.acadFilename, self.excelFilename), daemon=True) #TODO: temp for log debug
+#            block_shuffle_thread = threading.Thread(target=test_code.test_func, daemon=True)
             block_shuffle_thread.start()
             #block_shuffle.shuffle(self.acadFilename, self.excelFilename)
 
@@ -194,38 +138,7 @@ class Root(Tk):
 
 
 # ---------------------------------------------------------------------------------
-#TODO: this is temporary for debug of logger
-class Clock(threading.Thread):
-    """Class to display the time every seconds
-
-    Every 5 seconds, the time is displayed using the logging.ERROR level
-    to show that different colors are associated to the log levels
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._stop_event = threading.Event()
-
-    def run(self):
-        logger.debug('Clock started')
-        previous = -1
-        while not self._stop_event.is_set():
-            now = datetime.datetime.now()
-            if previous != now.second:
-                previous = now.second
-                if now.second % 5 == 0:
-                    level = logging.ERROR
-                else:
-                    level = logging.INFO
-                logger.log(level, now)
-            time.sleep(0.2)
-
-    def stop(self):
-        self._stop_event.set()
 
 
-    # ---------------------------------------------------------------------------------
-
-logger = logging.getLogger(__name__)
 root = Root()
 root.mainloop()
