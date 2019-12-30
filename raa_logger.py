@@ -5,9 +5,8 @@ from tkinter.scrolledtext import ScrolledText
 from tkinter import N, S, E, W
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG) #TODO: temp for debug
-logger_name = logger.name #TODO: pass to thread process, so he can call  "logger = logging.getLogger(logger_name)"
-print(f"XXX - logger.logger:{logger}") #TODO: debug
+logging.basicConfig(level=logging.INFO)
+logger_name = logger.name #TODO: consider passing to other processes, so he can call  "logger = logging.getLogger(logger_name)"
 
 ##  #TODO: figure out a way - where to add a logger file handler for all messages (including debug level)
 ##  # Create file handler
@@ -42,11 +41,12 @@ class QueueHandler(logging.Handler):
 class ConsoleUi:
     """Poll messages from a logging queue and display them in a scrolled text widget"""
 
-    def __init__(self, frame):
+    def __init__(self, frame, event):
         self.frame = frame
+        self.event = event
         # Create a ScrolledText wdiget
-        self.scrolled_text = ScrolledText(frame, state='disabled', height=12)
-        self.scrolled_text.grid(row=0, column=0, sticky=(N, S, W, E)) #TODO: should change grid row/col?
+        self.scrolled_text = ScrolledText(frame, state='disabled', height=24)
+        self.scrolled_text.grid(row=0, column=0, sticky=(N, S, W, E)) 
         self.scrolled_text.configure(font='TkFixedFont')
         self.scrolled_text.tag_config('INFO', foreground='black')
         self.scrolled_text.tag_config('DEBUG', foreground='gray')
@@ -79,5 +79,9 @@ class ConsoleUi:
                 break
             else:
                 self.display(record)
+
+            event_set = self.event.is_set() #TODO: event polling does not work...
+            if event_set:
+                messagebox.showinfo('Job Successfully finished', 'Successfully renamed blocks')
         self.frame.after(100, self.poll_log_queue)
 
