@@ -59,13 +59,14 @@ class block_shuffle:
 #        return doc
 
     def acad_command(self, command_str):
-        for i in range (10):
+        for i in range (50):
             try:
                 self.logger.debug(f'Sending command:{command_str}')
-                self.doc.SendCommand(command_str)
+                self.doc.SendCommand(command_str) 
             except:
                 self.failed = True
                 self.logger.debug(f"\Did not succeed in sending AutoCAD command {i} times")
+                sleep(0.1)
             else:
                 self.failed = False
                 break
@@ -90,7 +91,8 @@ class block_shuffle:
 
     def acad_replace_cellno(self, old_cellno, new_cellno):
     #    acad_command('._-attedit n\rn\rCellno\rCELLNO\r' + old_cellno + '\r' + old_cellno + '\r' + new_cellno + '\r')
-        self.acad_command('._-attedit n\rn\rCellno\rCELLNO\r\r' + old_cellno + '\r' + new_cellno + '\r')
+        #self.acad_command('._-attedit n\rn\rCellno\rCELLNO\r\r' + old_cellno + '\r' + new_cellno + '\r')
+        self.acad_command('._-attedit n\rn\rCellno\rCELLNO\r' + old_cellno + '\r' + old_cellno + '\r' + new_cellno + '\r')
     #    acad_command('._-attedit y\rCellno\rCELLNO\r' + old_cellno + '\rc\r' + x_pos + ',' + y_pos + '\r' + x_pos + ',' + y_pos + '\r' + new_cellno + '\r')
     #    x_corner_0 = str(float(x_pos)-1)
     #    y_corner_0 = str(float(y_pos)-1)
@@ -102,8 +104,10 @@ class block_shuffle:
 
     def gen_template_file(self, acad_filepath):
         template_filepath = dirname(acad_filepath) + '/' + 'attr_extract_template.txt'
+        self.logger.info(f"Extracting block names from .dwg file...\n")
         with  open(template_filepath, "w") as f: 
-            wstr = "BL:NAME C008000\nCELLNO N003000\nCODE N004000\nBL:X N012004\nBL:Y N012004\n"
+#            wstr = "BL:NAME C008000\nCELLNO N003000\nCODE N004000\nBL:X N012004\nBL:Y N012004\n"
+            wstr = "BL:NAME C008000\nCELLNO C004000\nCODE N004000\nBL:X N012004\nBL:Y N012004\n"
             f.write(wstr)
         return template_filepath
 
@@ -125,7 +129,6 @@ class block_shuffle:
         mapping_sheet = 'mapping' #TODO: take mapping sheet name from user
         df = pd.read_excel(mapping_excel_filepath, mapping_sheet) 
         self.logger.debug(f"Reading excel file: {mapping_excel_filepath}\tsheet name: {mapping_sheet}\n{df}")
-        self.logger.debug('Clock started')#TODO: temp for logger debug
         land_use_codes = list(map(lambda x: str(int(x)), df['land use code'].dropna().tolist()))
         cellno_formats = list(map(lambda x: str(int(x)), df['cellno format'].dropna().tolist()))
         self.logger.debug(f"len(land_use_codes):{land_use_codes}")
@@ -148,9 +151,13 @@ class block_shuffle:
         for line in file_str:
             self.logger.debug(f"line:{line}") 
             data_l = line.split(",")
-            data_strip_l = [re.sub("[\s\t\n]", "", x) for x in data_l]
+            data_strip_l = [re.sub("[\s\t\n\']", "", x) for x in data_l]
             if "cellno" in data_strip_l[0].lower():
-                data_d.setdefault(data_strip_l[2],  []).append(data_strip_l[1])
+                self.logger.debug(f"data_strip_l[1]:{data_strip_l[1]}") 
+                if data_strip_l[1].isdigit():
+                    data_d.setdefault(data_strip_l[2],  []).append(data_strip_l[1])
+                else:
+                    self.logger.warning(f"Block name: {data_strip_l[1]} is an invalid name - should consist of digits only!\nIgnoring block and moving on to the next one")
         
         
         # Create dictionary of New {code : cellno} pairs
@@ -187,6 +194,6 @@ class block_shuffle:
             sleep(0.1)
         
         #TODO: at the end - save file
-        self.event.set() #TODO: need self? + what if fails?
+        self.event.set() #TODO: what if fails?
         return True
 

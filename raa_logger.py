@@ -2,7 +2,7 @@ import logging
 import queue
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
-from tkinter import N, S, E, W
+from tkinter import N, S, E, W, messagebox
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -33,9 +33,14 @@ class QueueHandler(logging.Handler):
     def __init__(self, log_queue):
         super().__init__()
         self.log_queue = log_queue
+        self.level2count = {}
 
     def emit(self, record):
         self.log_queue.put(record)
+        lvl = record.levelname
+        if (lvl not in self.level2count):
+            self.level2count[lvl] = 0
+        self.level2count[lvl] += 1
 
 
 class ConsoleUi:
@@ -73,15 +78,28 @@ class ConsoleUi:
     def poll_log_queue(self):
         # Check every 100ms if there is a new message in the queue to display
         while True:
+            #Check for shuffle finish event
+            if self.event.is_set():
+                if any (str_check in ['WARNING', 'ERROR'] for str_check in self.queue_handler.level2count):
+                    if 'WARNING' in self.queue_handler.level2count:
+                        num_warnings = str(self.queue_handler.level2count['WARNING'])
+                    else:
+                        num_warnings = '0'
+                    if 'ERROR' in self.queue_handler.level2count:
+                        num_errors = str(self.queue_handler.level2count['ERROR'])
+                    else:
+                        num_errors = '0'
+                        fail_str = 'Got ' + num_warnings + ' WARNINGS and ' + num_errors + ' ERRORS while renaming blocks'
+                    messagebox.showwarning('Job finished Unsuccessfully', fail_str)
+                else:
+                    messagebox.showinfo('Job Successfully finished', 'Successfully renamed blocks')
+                self.event.clear()
+            #Check for logging queue status
             try:
                 record = self.log_queue.get(block=False)
             except queue.Empty:
                 break
             else:
                 self.display(record)
-
-            event_set = self.event.is_set() #TODO: event polling does not work...
-            if event_set:
-                messagebox.showinfo('Job Successfully finished', 'Successfully renamed blocks')
         self.frame.after(100, self.poll_log_queue)
 
