@@ -98,17 +98,7 @@ class block_shuffle:
         self.acad_command('._filedia 1 ')
 
     def acad_replace_cellno(self, old_cellno, new_cellno):
-    #    acad_command('._-attedit n\rn\rCellno\rCELLNO\r' + old_cellno + '\r' + old_cellno + '\r' + new_cellno + '\r')
-        #self.acad_command('._-attedit n\rn\rCellno\rCELLNO\r\r' + old_cellno + '\r' + new_cellno + '\r')
         self.acad_command('._-attedit n\rn\rCellno\rCELLNO\r' + old_cellno + '\r' + old_cellno + '\r' + new_cellno + '\r')
-    #    acad_command('._-attedit y\rCellno\rCELLNO\r' + old_cellno + '\rc\r' + x_pos + ',' + y_pos + '\r' + x_pos + ',' + y_pos + '\r' + new_cellno + '\r')
-    #    x_corner_0 = str(float(x_pos)-1)
-    #    y_corner_0 = str(float(y_pos)-1)
-    #    x_corner_1 = str(float(x_pos)+1)
-    #    y_corner_1 = str(float(y_pos)+1)
-    #    print(f"x_corner_0:{x_corner_0}")
-    #    print(f"y_corner_0:{y_corner_0}")
-    #    acad_command('._-attedit y\r\r\r' + old_cellno + '\rc\r' + x_corner_0 + ',' + y_corner_0 + '\r' + x_corner_1 + ',' + y_corner_1 + '\r\rv\rr\r' + new_cellno + '\rn\r')
 
     def gen_template_file(self, acad_filepath):
         template_filepath = dirname(acad_filepath) + '/' + 'attr_extract_template.txt'
@@ -118,12 +108,12 @@ class block_shuffle:
             f.write(wstr)
         return template_filepath
 
-    def get_new_name(self, formats_d, code, idx):
+    def get_new_name(self, formats_d, code, cnt):
         format_max_cellnos = self.get_max_cellnos(formats_d[code]) # get max number of cellnos (according to the format)
-        if idx > format_max_cellnos:
+        if cnt > format_max_cellnos:
             self.logger.exception(f"\nError: Exceeded maximum number of possible cellno values allowed by format\nThere can be {format_max_cellnos} cellnos\nExiting...") #TODO: raise error to GUI, which will open window
             exit()
-        new_name = str(int(formats_d[code])+idx)
+        new_name = str(int(formats_d[code])+cnt)
         return new_name
 
     def get_nearest_block_idx(self, block, blocks, skip_blocks, code):
@@ -138,6 +128,8 @@ class block_shuffle:
                 if dist < min_dist or min_dist == 0:
                     min_dist = dist
                     nearest_block_idx = blocks.index(candid_block)
+        elif len(candid_blocks) == 1:
+            nearest_block_idx = blocks.index(candid_blocks[0])
         else:
             nearest_block_idx = blocks.index(block)
         return nearest_block_idx
@@ -198,22 +190,6 @@ class block_shuffle:
                     #data_d.setdefault(block_code,  []).append(block_name)
                 else:
                     self.logger.warning(f"Block name: {block_name} is an invalid name - should consist of digits only!\nIgnoring block and moving on to the next one")
-            #TODO: OLD VERSION: before removing - verify that all checks and exceptions were taken to new version
-#        # Create dictionary of Original {code : cellno} pairs
-#        data_d = {}
-#        new_data_d = {}
-#        print_new_data_d = {}
-#        for line in file_str:
-#            self.logger.debug(f"line:{line}") 
-#            data_l = line.split(",")
-#            data_strip_l = [re.sub("[\s\t\n\']", "", x) for x in data_l]
-#            if "cellno" in data_strip_l[0].lower():
-#                self.logger.debug(f"data_strip_l[1]:{data_strip_l[1]}") 
-#                if data_strip_l[1].isdigit():
-#                    data_d.setdefault(data_strip_l[2],  []).append(data_strip_l[1])
-#                else:
-#                    self.logger.warning(f"Block name: {data_strip_l[1]} is an invalid name - should consist of digits only!\nIgnoring block and moving on to the next one")
-
 
         # Add unique temp name and a new name to each block
         # Naming should be done according to geografical distance between each group of block_code blocks,
@@ -222,7 +198,7 @@ class block_shuffle:
         # 1. go over each code in the blocks_data dict
         uniq_char = 'A'
         for code, blocks in blocks_data.items():
-            # 2. re-order blocks list by geographic proximity:
+            # 2. rename blocks in an ascending names (both for uniq and new names), going through the blocks according to their proximity as follows:
             # pick a random block and find its geografically nearest block (while ignoring blocks already picked),
             # then add picked block to skip list, rename the nearest with new and uniq names.
             # then move on to the nearest and look for the (now) closest to it.
@@ -233,11 +209,11 @@ class block_shuffle:
                 self.logger.exception("\nError: Autodesk CODE was not found in excel list of codes\nExiting...") #TODO: raise error to GUI, which will open window
                 exit() #TODO: needed? 
             while len(skip_blocks) < len(blocks):
-                self.logger.debug(f"len of skip_blocks:{len(skip_blocks)}   len of blocks:{len(blocks)}")
+                self.logger.debug(f"\nlen of skip_blocks:{len(skip_blocks)}   len of blocks:{len(blocks)}")
                 # rename with uniq and new names
                 block = blocks[idx]
                 block.uniq_name = uniq_char + str(cnt)
-                block.new_name = self.get_new_name(formats_d, code, idx)
+                block.new_name = self.get_new_name(formats_d, code, cnt)
                 self.logger.debug(f"Block {block.orig_name} - added unique temp name: {block.uniq_name}")
                 self.logger.info(f"Block {block.orig_name} - added new name: {block.new_name}")
                 idx = self.get_nearest_block_idx(block, blocks, skip_blocks, code)
@@ -246,37 +222,10 @@ class block_shuffle:
                 skip_blocks.append(block)
             
             uniq_char = chr(ord(uniq_char) + 1) # advance uniq char for the next code
-        #TODO: after assembling new and uniq names for all - need to actually replace
 
-        #TODO: OLD VERSION: before removing - verify that all checks and exceptions were taken to new version
-##        # Create dictionary of New {code : cellno} pairs
-##        mid_char = 'A'
-##        for i, key in enumerate(data_d):
-##            mid_char = chr(ord(mid_char) + 1)
-##            self.logger.debug(f"mid_char:{mid_char}")
-##            if key not in formats_d.keys():
-##                self.logger.exception("\nError: Autodesk CODE was not found in excel list of codes\nExiting...") #TODO: raise error to GUI, which will open window
-##    #            exit() #TODO: needed? 
-##            self.logger.debug(f"\nCODE {key}:\nOriginal CELLNO values:{data_d[key]}")
-##            format_max_cellnos = self.get_max_cellnos(formats_d[key]) # get max number of cellnos (according to the format)
-##            for j, val in enumerate(data_d[key]):
-##                if j > format_max_cellnos:
-##                    self.logger.exception(f"\nError: Exceeded maximum number of possible cellno values allowed by format\nThere can be {format_max_cellnos} cellnos\nExiting...") #TODO: raise error to GUI, which will open window
-##                    exit()
-##                mid_val = mid_char + str(j)
-##                new_val = str(int(formats_d[key])+j)
-##                new_data_d.update({mid_val : new_val})
-##                print_new_data_d.setdefault(key, []).append(new_val) # only for debug print
-##                # replace cellno in autocad - first by a unique temporary value
-##                self.logger.info(f"Replacing {val} by unique mid value {mid_val}")
-##                self.acad_replace_cellno(old_cellno=val,  new_cellno=mid_val)
-##                sleep(0.1)
-##            self.logger.info(f"Updated CELLNO values:{print_new_data_d[key]}") 
-##        #acad_replace_cellno(old_cellno=val,  new_cellno=new_val)
-##
-
-            # now replace block names: first by uniq temp name, then by new name
-            for i in range (2):
+        # 3. now actually replace block names: first by unique temp name, then by new name
+        for i in range (2):
+            for blocks in blocks_data.values():
                 for block in blocks:
                     old_name   = block.orig_name if i == 0 else block.uniq_name
                     new_name = block.uniq_name if i == 0 else block.new_name
@@ -284,17 +233,9 @@ class block_shuffle:
                         self.logger.info(f"Replacing block {block.orig_name} by {block.new_name} (going through middle temporary name {block.uniq_name})")
                     self.acad_replace_cellno(old_cellno=old_name,  new_cellno=new_name)
                     sleep(0.1)
-            
-#TODO: OLD VERSION
-##        # now replace cellno by new values
-##        self.logger.debug(f"new_data_d:{new_data_d}")
-##        for uniq in new_data_d:
-##            new_val = new_data_d[uniq]
-##            self.logger.info(f"Replacing unique mid value {uniq} by {new_val}")
-##            self.acad_replace_cellno(old_cellno=uniq,  new_cellno=new_val)
-##            sleep(0.1)
-        
+
+
         #TODO: at the end - save file
-        self.event.set() #TODO: what if fails?
+        self.event.set()
         return True
 
