@@ -8,6 +8,7 @@ from time import sleep
 import threading #TODO: is required?
 import raa_logger
 import logging
+from prettytable import PrettyTable
 
 class acad_block:
     def __init__(self, orig_name, x_cord, y_cord):
@@ -224,6 +225,7 @@ class block_shuffle:
             uniq_char = chr(ord(uniq_char) + 1) # advance uniq char for the next code
 
         # 3. now actually replace block names: first by unique temp name, then by new name
+        table = PrettyTable(['Original Block Name', 'New Block Name'])
         for i in range (2):
             for blocks in blocks_data.values():
                 for block in blocks:
@@ -231,9 +233,12 @@ class block_shuffle:
                     new_name = block.uniq_name if i == 0 else block.new_name
                     if i == 1:
                         self.logger.info(f"Replacing block {block.orig_name} by {block.new_name} (going through middle temporary name {block.uniq_name})")
+                        table.add_row([block.orig_name, block.new_name])
                     self.acad_replace_cellno(old_cellno=old_name,  new_cellno=new_name)
                     sleep(0.1)
-
+        self.logger.info("\nBlocks Replacement Conclusion:")
+        self.logger.info("-------------------------------")
+        self.logger.info(f"{table}")
 
         #TODO: at the end - save file
         self.event.set()
