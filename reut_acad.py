@@ -20,7 +20,7 @@ class Root(Tk):
     def __init__(self):
         super(Root, self).__init__()
         self.title("RAA") 
-        self.wm_iconbitmap('C:/Users/reuts/Desktop/חן/קרית גת/arch.ico')
+        self.wm_iconbitmap('./arch.ico')
         self.acadFilename = ""
         self.excelFilename = ""
         self.event = threading.Event()
