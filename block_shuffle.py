@@ -9,6 +9,8 @@ import threading #TODO: is required?
 import raa_logger
 import logging
 from prettytable import PrettyTable
+from pythoncom import CoInitializeEx
+from pythoncom import CoUninitialize
 
 class acad_block:
     def __init__(self, orig_name, x_cord, y_cord):
@@ -24,7 +26,7 @@ class block_shuffle:
         self.logger = logging.getLogger("raa_logger")
         self.event = event
 
-    def check_legal_mapping(self, land_use_codes, cellno_formats): #TODO: exception or error? what happens in case of exception?
+    def check_legal_mapping(self, land_use_codes, cellno_formats): 
         error = True
         if len(land_use_codes) > len(set(land_use_codes)):
             self.logger.exception("\nError: \"land use code\" values must be unique")
@@ -35,8 +37,9 @@ class block_shuffle:
         else:
             error = False
 
-        if error: #TODO: if self.logger.exception - then exit still needed? to check 
+        if error: 
             self.logger.info("Exiting...")
+            CoUninitialize()
             exit()
 
     def trailing(self, s):
@@ -112,7 +115,8 @@ class block_shuffle:
     def get_new_name(self, formats_d, code, cnt):
         format_max_cellnos = self.get_max_cellnos(formats_d[code]) # get max number of cellnos (according to the format)
         if cnt > format_max_cellnos:
-            self.logger.exception(f"\nError: Exceeded maximum number of possible cellno values allowed by format\nThere can be {format_max_cellnos} cellnos\nExiting...") #TODO: raise error to GUI, which will open window
+            self.logger.exception(f"\nError: Exceeded maximum number of possible cellno values allowed by format\nThere can be {format_max_cellnos} cellnos\nExiting...") 
+            CoUninitialize()
             exit()
         new_name = str(int(formats_d[code])+cnt)
         return new_name
@@ -137,6 +141,7 @@ class block_shuffle:
 
 
     def shuffle(self, acad_filepath, mapping_excel_filepath):
+        res = CoInitializeEx(0) 
         # Open Autocad and dwg file
         self.open_acad(acad_filepath)
         
@@ -207,8 +212,9 @@ class block_shuffle:
             idx = 0
             cnt = 0
             if code not in formats_d.keys():
-                self.logger.exception("\nError: Autodesk CODE was not found in excel list of codes\nExiting...") #TODO: raise error to GUI, which will open window
-                exit() #TODO: needed? 
+                self.logger.exception("\nError: Autodesk CODE {code} was not found in excel list of codes\nExiting...")
+                CoUninitialize()
+                exit() 
             while len(skip_blocks) < len(blocks):
                 self.logger.debug(f"\nlen of skip_blocks:{len(skip_blocks)}   len of blocks:{len(blocks)}")
                 # rename with uniq and new names
@@ -231,16 +237,20 @@ class block_shuffle:
                 for block in blocks:
                     old_name   = block.orig_name if i == 0 else block.uniq_name
                     new_name = block.uniq_name if i == 0 else block.new_name
-                    if i == 1:
-                        self.logger.info(f"Replacing block {block.orig_name} by {block.new_name} (going through middle temporary name {block.uniq_name})")
+                    if i == 0:
+                       self.logger.info(f"Replacing block {block.orig_name} by a temporary unique name {block.uniq_name}") 
+                    elif i == 1:
+                        self.logger.info(f"Replacing temporary unique name {block.uniq_name} by {block.new_name} (for block originally named {block.orig_name})")
                         table.add_row([block.orig_name, block.new_name])
                     self.acad_replace_cellno(old_cellno=old_name,  new_cellno=new_name)
                     sleep(0.1)
         self.logger.info("\nBlocks Replacement Conclusion:")
         self.logger.info("-------------------------------")
         self.logger.info(f"{table}")
+        sleep(0.1)
 
         #TODO: at the end - save file
         self.event.set()
+        CoUninitialize()
         return True
 
